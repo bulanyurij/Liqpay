@@ -1,0 +1,3 @@
+include ':Liqpay'
+include ':app'
+rootProject.name = "LiqpaySystem"
