@@ -1,6 +1,6 @@
 package ua.liqpay.request
 
-import ua.liqpay.utils.encode
+import ua.liqpay.utils.encodeUTF8
 import java.io.BufferedInputStream
 import java.io.BufferedReader
 import java.io.DataOutputStream
@@ -68,7 +68,7 @@ class HttpRequest : Request {
             stringBuilder
                 .append(it.key)
                 .append("=")
-                .append(it.value?.encode())
+                .append(it.value?.encodeUTF8())
                 .append("&")
         }
         return stringBuilder.toString()
