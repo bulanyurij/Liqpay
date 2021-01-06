@@ -13,7 +13,7 @@ import org.json.JSONObject
 import ua.liqpay.utils.URLEncodeUtil
 import java.net.URI
 
-class CheckoutActivity : Activity() {
+class LiqpayActivity : Activity() {
 
     private lateinit var webView: WebView
 

@@ -7,84 +7,108 @@ import android.content.IntentFilter
 import android.os.Looper
 import org.json.JSONObject
 import ua.liqpay.request.ErrorCode
+import ua.liqpay.request.HttpRequest
+import ua.liqpay.request.LIQPAY_API_URL_REQUEST
 import ua.liqpay.utils.base64
+import ua.liqpay.utils.getDeviceId
 import ua.liqpay.utils.isNetworkAvailable
 import ua.liqpay.utils.signature
-import ua.liqpay.view.CheckoutActivity
+import ua.liqpay.view.LiqpayActivity
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.*
+import kotlin.collections.HashMap
 
 const val BROADCAST_RECEIVER_ACTION = "ua.liqpay.action"
 
-class LiqPay(private val context: Context, private val checkoutCallBack: LiqPayCallBack) {
+class LiqPay(private val context: Context,
+             private val callback: LiqpayCallback) {
+
+    /**
+     * Start liqpay checkout
+     *
+     * @param privateKey Liqpay private key
+     * @param params Other params
+     */
+    fun checkout(privateKey: String, params: Map<String, Any?> = hashMapOf()) {
+        val base64Data = JSONObject(params).toString().base64()
+        val signature = signature(base64Data, privateKey)
+        checkout(base64Data, signature)
+    }
+
+    fun checkout(
+        base64Data: String,
+        signature: String
+    ) {
+        if (!isNetworkAvailable(context)) {
+            callback.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
+        } else {
+            val liqPay = LiqPay(context, callback)
+            context.registerReceiver(
+                liqPay.eventReceiver,
+                IntentFilter(BROADCAST_RECEIVER_ACTION)
+            )
+            startLiqpayActivity(base64Data, signature)
+        }
+    }
+
+    fun api(
+        context: Context,
+        path: String,
+        params: HashMap<String, String?> = hashMapOf(),
+        privateKey: String
+    ) {
+        val base64Data = JSONObject(params as Map<*, *>).toString().base64()
+        val signature = signature(base64Data, privateKey)
+        api(context, path, base64Data, signature)
+    }
+
+    private fun api(
+        context: Context,
+        path: String,
+        base64Data: String?,
+        signature: String?
+    ) {
+        if (!isNetworkAvailable(context)) {
+            callback.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
+        } else if (Looper.myLooper() == Looper.getMainLooper()) {
+            callback.onError(ErrorCode.NEED_NON_UI_THREAD)
+        } else {
+            val postParams = HashMap<String, String?>()
+            postParams["data"] = base64Data
+            postParams["signature"] = signature
+            try {
+                val request = HttpRequest()
+                val resp = request.post(LIQPAY_API_URL_REQUEST + path, postParams)
+                callback.onSuccess(resp)
+            } catch (e: IOException) {
+                e.printStackTrace()
+                callback.onError(ErrorCode.IO)
+            }
+        }
+    }
 
     private val eventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == BROADCAST_RECEIVER_ACTION) {
                 val response = intent.getStringExtra("data")
                 if (response.isNullOrEmpty()) {
-                    checkoutCallBack.onError(ErrorCode.CHECKOUT_CANCELED)
+                    callback.onError(ErrorCode.CHECKOUT_CANCELED)
                 } else {
-                    checkoutCallBack.onSuccess(response)
+                    callback.onSuccess(response)
                 }
                 context.unregisterReceiver(this)
             }
         }
     }
 
-    private fun startCheckoutActivity(data: String, signature: String) {
-        val intent = Intent(context, CheckoutActivity::class.java)
-        intent.putExtra(CheckoutActivity.INTENT_POST_DATA, "data=" + URLEncoder.encode(data) +
-                "&signature=" + signature + "&hash_device=" + getHashDevice(context) + "&channel=android")
+    private fun startLiqpayActivity(data: String, signature: String) {
+        val intent = Intent(context, LiqpayActivity::class.java)
+        intent.putExtra(
+            LiqpayActivity.INTENT_POST_DATA, "data=" + URLEncoder.encode(data) +
+                    "&signature=" + signature + "&hash_device=" + getDeviceId(context) + "&channel=android"
+        )
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
-    }
-
-    companion object {
-
-        @JvmStatic
-        fun api(context: Context, path: String, params: HashMap<String, String?> = hashMapOf(), privateKey: String, callBack: LiqPayCallBack) {
-            val base64Data = JSONObject(params as Map<*, *>).toString().base64()
-            val signature = signature(base64Data, privateKey)
-            api(context, path, base64Data, signature, callBack)
-        }
-
-        private fun api(context: Context, path: String, base64Data: String?, signature: String?, callBack: LiqPayCallBack) {
-            if (!isNetworkAvailable(context)) {
-                callBack.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
-            } else if (Looper.myLooper() == Looper.getMainLooper()) {
-                callBack.onError(ErrorCode.NEED_NON_UI_THREAD)
-            } else {
-                val postParams = HashMap<String, String?>()
-                postParams["data"] = base64Data
-                postParams["signature"] = signature
-                try {
-                    val resp = post(LIQPAY_API_URL_REQUEST + path, postParams)
-                    callBack.onSuccess(resp)
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                    callBack.onError(ErrorCode.IO)
-                }
-            }
-        }
-
-        @JvmStatic
-        fun checkout(context: Context, params: HashMap<String, String?>?, privateKey: String, callBack: LiqPayCallBack) {
-            val base64Data = JSONObject(params as Map<*, *>).toString().base64()
-            val signature = signature(base64Data, privateKey)
-            checkout(context, base64Data, signature, callBack)
-        }
-
-        @JvmStatic
-        fun checkout(context: Context, base64Data: String, signature: String, callBack: LiqPayCallBack) {
-            if (!isNetworkAvailable(context)) {
-                callBack.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
-            } else {
-                val liqPay = LiqPay(context, callBack)
-                context.registerReceiver(liqPay.eventReceiver, IntentFilter(BROADCAST_RECEIVER_ACTION))
-                liqPay.startCheckoutActivity(base64Data, signature)
-            }
-        }
     }
 }
