@@ -13,6 +13,7 @@ import ua.liqpay.utils.base64
 import ua.liqpay.utils.getDeviceId
 import ua.liqpay.utils.isNetworkAvailable
 import ua.liqpay.utils.signature
+import ua.liqpay.view.BUNDLE_LIQPAY_DATA
 import ua.liqpay.view.LiqpayActivity
 import java.io.IOException
 import java.net.URLEncoder
@@ -48,7 +49,7 @@ class LiqPay(private val context: Context,
                 liqPay.eventReceiver,
                 IntentFilter(BROADCAST_RECEIVER_ACTION)
             )
-            startLiqpayActivity(base64Data, signature)
+            LiqpayActivity.start(context, base64Data, signature)
         }
     }
 
@@ -83,7 +84,7 @@ class LiqPay(private val context: Context,
                 callback.onSuccess(resp)
             } catch (e: IOException) {
                 e.printStackTrace()
-                callback.onError(ErrorCode.IO)
+                callback.onError(ErrorCode.OTHER)
             }
         }
     }
@@ -100,15 +101,5 @@ class LiqPay(private val context: Context,
                 context.unregisterReceiver(this)
             }
         }
-    }
-
-    private fun startLiqpayActivity(data: String, signature: String) {
-        val intent = Intent(context, LiqpayActivity::class.java)
-        intent.putExtra(
-            LiqpayActivity.INTENT_POST_DATA, "data=" + URLEncoder.encode(data) +
-                    "&signature=" + signature + "&hash_device=" + getDeviceId(context) + "&channel=android"
-        )
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
     }
 }

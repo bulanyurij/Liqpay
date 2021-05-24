@@ -3,62 +3,44 @@ package ua.liqpay.view
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ProgressDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.util.Base64
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import org.json.JSONObject
-import ua.liqpay.utils.URLEncodeUtil
-import java.net.URI
+import ua.liqpay.LIQPAY_URL_CHECKOUT
+import java.net.URLEncoder
 
-class LiqpayActivity : Activity() {
+const val BUNDLE_LIQPAY_DATA = "bundle_liqpay_data"
 
-    private lateinit var webView: WebView
+internal class LiqpayActivity : Activity() {
 
-    public override fun onCreate(savedInstanceState: Bundle?) {
+    private lateinit var progressDialog: ProgressDialog
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        webView = WebView(this)
-        setContentView(webView)
-        initWebView()
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        progressDialog = ProgressDialog(this).apply {
+            setMessage("Loading...")
+            show()
+        }
+        progressDialog.dismiss()
+        setContentView(createLiqpayView())
     }
 
     override fun onDestroy() {
-        webView.destroy()
-        sendEvent(null)
         super.onDestroy()
+        progressDialog.dismiss()
     }
 
     /**
-     * Init web view and load web page
+     * Create liqpay view.
      */
     @SuppressLint("SetJavaScriptEnabled")
-    private fun initWebView() {
-        val progressDialog = ProgressDialog(this)
-        progressDialog.setMessage("Loading...")
-        progressDialog.show()
-
-        webView.apply {
-            postUrl(LIQPAY_API_URL_CHECKOUT, sharedData())
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView, url: String) {
-                    progressDialog.cancel()
-                    super.onPageFinished(view, url)
-                }
-
-                override fun onLoadResource(view: WebView, url: String) {
-                    super.onLoadResource(view, url)
-                    val startUrl = "/api/mob/webview"
-                    if (url.contains(startUrl)) {
-                        val data = parseUrl(url)
-                        sendEvent(data.toString())
-                        finish()
-                    }
-                }
+    private fun createLiqpayView(): LiqpayView {
+        return LiqpayView(this).apply {
+            postUrl(LIQPAY_URL_CHECKOUT, sharedData())
+            webChromeClient = WindowChromeClient {
+                setContentView(createLiqpayView())
             }
         }
     }
@@ -67,37 +49,27 @@ class LiqpayActivity : Activity() {
      * Get shared data from intent
      */
     private fun sharedData(): ByteArray {
-        return intent.getStringExtra(INTENT_POST_DATA)?.encodeToByteArray() ?: byteArrayOf()
+        return intent.getStringExtra(BUNDLE_LIQPAY_DATA)?.toByteArray() ?: byteArrayOf()
     }
-
-
-
-    /**
-     * Parse url data
-     *
-     * @param url Web url
-     *
-     * @return [JSONObject]
-     */
-    private fun parseUrl(url: String?): JSONObject {
-        val data = JSONObject()
-        URLEncodeUtil.parse(URI(url), "UTF-8").forEach {
-            try {
-                if ("data" == it.first) {
-                    val item = JSONObject(String(Base64.decode(it.second, 2)))
-                    LiqPayUtil.addAll(data, item)
-                } else {
-                    data.put(it.first, it.second)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        return data
-    }
-
 
     companion object {
-        const val INTENT_POST_DATA = "post_data"
+
+        /**
+         * Start liqpay activity.
+         *
+         * @param context [Context]
+         *
+         * @param data Liqpay data
+         *
+         * @param signature Liqpay signature
+         */
+        @JvmStatic
+        internal fun start(context: Context, data: String, signature: String) {
+            val intent = Intent(context, LiqpayActivity::class.java).apply {
+                putExtra(BUNDLE_LIQPAY_DATA, "data=" + URLEncoder.encode(data) + "&signature=" + signature)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
     }
 }

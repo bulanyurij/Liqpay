@@ -1,7 +1,7 @@
 package ua.liqpay.utils
 
 /**
- * Create Liqopay signature
+ * Create Liqpay signature
  *
  * @param data Base64 encoded data
  * @param privateKey Liqpay private key
