@@ -1,11 +1,14 @@
 package ua.liqpay
 
-import ua.liqpay.request.ErrorCode
 
-
+/**
+ * Liqpay result callback.
+ */
 interface LiqpayCallback {
 
     fun onSuccess(response: String?)
 
-    fun onError(error: ErrorCode)
+    fun onError()
+
+    fun onCancel()
 }

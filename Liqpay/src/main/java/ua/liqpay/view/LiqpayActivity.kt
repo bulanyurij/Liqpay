@@ -2,34 +2,52 @@ package ua.liqpay.view
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.ProgressDialog
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import ua.liqpay.LIQPAY_BROADCAST_RECEIVER_ACTION
+import ua.liqpay.LIQPAY_DATA_KEY
+import ua.liqpay.LIQPAY_SIGNATURE_KEY
 import ua.liqpay.LIQPAY_URL_CHECKOUT
 import java.net.URLEncoder
 
-const val BUNDLE_LIQPAY_DATA = "bundle_liqpay_data"
+private const val BUNDLE_LIQPAY_DATA = "bundle_liqpay_data"
 
+/**
+ * Liapay payment activity.
+ */
 internal class LiqpayActivity : Activity() {
 
-    private lateinit var progressDialog: ProgressDialog
+    private lateinit var loadingDialog: LoaderViewDialog
+    private lateinit var eventReceiver: BroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        progressDialog = ProgressDialog(this).apply {
-            setMessage("Loading...")
-            show()
-        }
-        progressDialog.dismiss()
+        loadingDialog = LoaderViewDialog(this)
+        initCancelPaymentReceiver()
         setContentView(createLiqpayView())
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        progressDialog.dismiss()
+        loadingDialog.dismiss()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerReceiver(
+            eventReceiver,
+            IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(eventReceiver)
     }
 
     /**
@@ -42,6 +60,15 @@ internal class LiqpayActivity : Activity() {
             webChromeClient = WindowChromeClient {
                 setContentView(createLiqpayView())
             }
+            loadingListener = object : LoadingListener{
+                override fun showLoading() {
+                    loadingDialog.show()
+                }
+
+                override fun hideLoading() {
+                    loadingDialog.dismiss()
+                }
+            }
         }
     }
 
@@ -50,6 +77,19 @@ internal class LiqpayActivity : Activity() {
      */
     private fun sharedData(): ByteArray {
         return intent.getStringExtra(BUNDLE_LIQPAY_DATA)?.toByteArray() ?: byteArrayOf()
+    }
+
+    private fun initCancelPaymentReceiver(){
+        eventReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == LIQPAY_BROADCAST_RECEIVER_ACTION) {
+                    val response = intent.getStringExtra(BUNDLE_DATA)
+                    if (response.isNullOrEmpty()) {
+                        finish()
+                    }
+                }
+            }
+        }
     }
 
     companion object {
@@ -66,7 +106,8 @@ internal class LiqpayActivity : Activity() {
         @JvmStatic
         internal fun start(context: Context, data: String, signature: String) {
             val intent = Intent(context, LiqpayActivity::class.java).apply {
-                putExtra(BUNDLE_LIQPAY_DATA, "data=" + URLEncoder.encode(data) + "&signature=" + signature)
+                putExtra(BUNDLE_LIQPAY_DATA, "${LIQPAY_DATA_KEY}=" + URLEncoder.encode(data) +
+                        "&${LIQPAY_SIGNATURE_KEY}=" + signature)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)

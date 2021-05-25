@@ -6,9 +6,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 
-
-
-fun isInstallApp(context: Context, uri: String): Boolean {
+/**
+ * Check application is install.
+ */
+internal fun isInstallApp(context: Context, uri: String): Boolean {
     val pm = context.packageManager
     try {
         pm.getPackageInfo(uri, PackageManager.GET_ACTIVITIES)
@@ -18,8 +19,10 @@ fun isInstallApp(context: Context, uri: String): Boolean {
     return false
 }
 
-
-fun handleAppLink(context: Context, url: String, app: String) {
+/**
+ * Open or download application.
+ */
+internal fun handleAppLink(context: Context, url: String, app: String) {
     if (isInstallApp(context, app)) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         return

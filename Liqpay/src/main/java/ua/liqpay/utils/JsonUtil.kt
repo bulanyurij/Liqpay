@@ -10,7 +10,7 @@ import org.json.JSONObject
  *
  * @param object2 [JSONObject]
  */
-fun merge(object1: JSONObject, object2: JSONObject): JSONObject {
+internal fun merge(object1: JSONObject, object2: JSONObject): JSONObject {
     val iter = object2.keys() as Iterator<String>
     while (iter.hasNext()) {
         val key = iter.next()

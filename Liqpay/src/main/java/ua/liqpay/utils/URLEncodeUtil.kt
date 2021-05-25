@@ -9,7 +9,7 @@ import java.util.*
  * A collection of utilities for encoding URLs.
  *
  */
-object URLEncodeUtil {
+internal object URLEncodeUtil {
 
     private const val DEFAULT_CONTENT_CHARSET = "UTF-8"
     private const val PARAMETER_SEPARATOR = "&"

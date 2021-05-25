@@ -4,97 +4,107 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Looper
 import org.json.JSONObject
-import ua.liqpay.request.ErrorCode
-import ua.liqpay.request.HttpRequest
-import ua.liqpay.request.LIQPAY_API_URL_REQUEST
 import ua.liqpay.utils.base64
-import ua.liqpay.utils.getDeviceId
-import ua.liqpay.utils.isNetworkAvailable
 import ua.liqpay.utils.signature
-import ua.liqpay.view.BUNDLE_LIQPAY_DATA
+import ua.liqpay.view.BUNDLE_DATA
 import ua.liqpay.view.LiqpayActivity
-import java.io.IOException
-import java.net.URLEncoder
-import java.util.*
-import kotlin.collections.HashMap
 
-const val BROADCAST_RECEIVER_ACTION = "ua.liqpay.action"
+internal const val LIQPAY_BROADCAST_RECEIVER_ACTION = "ua.liqpay.action"
+internal const val LIQPAY_DATA_KEY = "data"
+internal const val LIQPAY_SIGNATURE_KEY = "signature"
 
-class LiqPay(private val context: Context,
-             private val callback: LiqpayCallback) {
+class LiqPay(
+    private val context: Context,
+    private val callback: LiqpayCallback
+) {
 
     /**
-     * Start liqpay checkout
+     * Start checkout page.
      *
-     * @param privateKey Liqpay private key
-     * @param params Other params
+     * @param privateKey Secret access key for API
+     * @param publicKey Unique ID of your company in LiqPay system
+     * @param action Transaction type. Possible values: pay - payment,
+     *                  hold - amount of hold on sender's account, subscribe - regular payment,
+     *                  paydonate - donation, auth - card preauth
+     * @param amount Payment amount. For example: 5, 7.34
+     * @param currency Payment currency. Possible values: USD, EUR, RUB, UAH, BYN, KZT
+     * @param description Payment description
+     * @param orderId Unique purchase ID in your shop. Maximum length is 255 symbols.
+     * @param language Customer's language ru, uk, en
+     *
+     * More info: https://www.liqpay.ua/documentation/en/api/aquiring/checkout/doc
+     *
      */
-    fun checkout(privateKey: String, params: Map<String, Any?> = hashMapOf()) {
-        val base64Data = JSONObject(params).toString().base64()
+    fun checkout(
+        privateKey: String,
+        publicKey: String,
+        action: String = "pay",
+        amount: Double,
+        currency: String = "UAH",
+        description: String,
+        orderId: String,
+        language: String = "uk"
+    ) {
+        val params = hashMapOf(
+            "action" to action,
+            "amount" to amount,
+            "currency" to currency,
+            "description" to description,
+            "order_id" to orderId,
+            "language" to language
+        )
+        checkout(privateKey, publicKey, params)
+    }
+
+    /**
+     * Start checkout page.
+     *
+     * @param privateKey Secret access key for API
+     * @param publicKey Unique ID of your company in LiqPay system
+     * @param params Custom API params. Info: https://www.liqpay.ua/documentation/en/api/aquiring/checkout/doc
+     *
+     */
+    fun checkout(privateKey: String, publicKey: String, params: Map<String, Any?> = hashMapOf()) {
+        val tempMap = params.toMutableMap().apply {
+            put("public_key", publicKey)
+            if (!containsKey("version")) {
+                put("version", LIQPAY_API_VERSION)
+            }
+        }
+        val base64Data = JSONObject(tempMap).toString().base64()
         val signature = signature(base64Data, privateKey)
         checkout(base64Data, signature)
     }
 
+    /**
+     * Start checkout page.
+     *
+     * @param base64Data Checkout data encoded by the base64
+     * @param signature The unique signature of each request base64_encode(sha1(private_key + data + private_key))
+     *
+     */
     fun checkout(
         base64Data: String,
         signature: String
     ) {
-        if (!isNetworkAvailable(context)) {
-            callback.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
-        } else {
-            val liqPay = LiqPay(context, callback)
-            context.registerReceiver(
-                liqPay.eventReceiver,
-                IntentFilter(BROADCAST_RECEIVER_ACTION)
-            )
-            LiqpayActivity.start(context, base64Data, signature)
-        }
+        val liqPay = LiqPay(context, callback)
+        context.registerReceiver(
+            liqPay.eventReceiver,
+            IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
+        )
+        LiqpayActivity.start(context, base64Data, signature)
     }
 
-    fun api(
-        context: Context,
-        path: String,
-        params: HashMap<String, String?> = hashMapOf(),
-        privateKey: String
-    ) {
-        val base64Data = JSONObject(params as Map<*, *>).toString().base64()
-        val signature = signature(base64Data, privateKey)
-        api(context, path, base64Data, signature)
-    }
-
-    private fun api(
-        context: Context,
-        path: String,
-        base64Data: String?,
-        signature: String?
-    ) {
-        if (!isNetworkAvailable(context)) {
-            callback.onError(ErrorCode.FAIL_INTERNET_CONNECTION)
-        } else if (Looper.myLooper() == Looper.getMainLooper()) {
-            callback.onError(ErrorCode.NEED_NON_UI_THREAD)
-        } else {
-            val postParams = HashMap<String, String?>()
-            postParams["data"] = base64Data
-            postParams["signature"] = signature
-            try {
-                val request = HttpRequest()
-                val resp = request.post(LIQPAY_API_URL_REQUEST + path, postParams)
-                callback.onSuccess(resp)
-            } catch (e: IOException) {
-                e.printStackTrace()
-                callback.onError(ErrorCode.OTHER)
-            }
-        }
-    }
-
+    /**
+     * Result event receiver.
+     */
     private val eventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == BROADCAST_RECEIVER_ACTION) {
-                val response = intent.getStringExtra("data")
+            if (intent.action == LIQPAY_BROADCAST_RECEIVER_ACTION) {
+                val response = intent.getStringExtra(BUNDLE_DATA)
                 if (response.isNullOrEmpty()) {
-                    callback.onError(ErrorCode.CHECKOUT_CANCELED)
+                    callback.onCancel()
                 } else {
                     callback.onSuccess(response)
                 }

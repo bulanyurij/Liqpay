@@ -10,7 +10,7 @@ private const val IS_ENABLE = true
  *
  * @param message Error message
  */
-fun logE(message: Any?) {
+internal fun logE(message: Any?) {
     if (IS_ENABLE)
         Log.e(LOG_TAG, message.toString())
 }
@@ -20,18 +20,18 @@ fun logE(message: Any?) {
  *
  * @param message Info message
  */
-fun logI(message: Any?) {
+internal fun logI(message: Any?) {
     if (IS_ENABLE)
         Log.i(LOG_TAG, message.toString())
 }
 
-fun Throwable?.logE(){
+internal fun Throwable?.logE(){
     this?.localizedMessage?.let {
         logE(it)
     }
 }
 
-fun Exception?.logE(){
+internal fun Exception?.logE(){
     this?.localizedMessage?.let {
         logE(it)
     }

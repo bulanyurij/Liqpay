@@ -7,6 +7,6 @@ package ua.liqpay.utils
  * @param privateKey Liqpay private key
  *
  */
-fun signature(data: String, privateKey: String): String {
+internal fun signature(data: String, privateKey: String): String {
     return ((privateKey + data + privateKey).sha1()).base64()
 }
