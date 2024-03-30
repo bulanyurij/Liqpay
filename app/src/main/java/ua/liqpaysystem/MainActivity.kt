@@ -36,6 +36,6 @@ class MainActivity : AppCompatActivity(), LiqpayCallback {
     }
 
     override fun onCancel() {
-        Log.i(TAG, "User canceled paymentю")
+        Log.i(TAG, "User canceled payment")
     }
 }

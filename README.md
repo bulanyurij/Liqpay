@@ -1,11 +1,11 @@
 <p align="center">
-    <img src="https://www.liqpay.ua/1620311747/static/img/images/logo.svg" width="250" height="119" />
+    <img src="https://www.liqpay.ua/logo_liqpay_main.svg" width="250" height="119" />
 </p>
 
 # Liqpay
 Android Library to implement Liqpay integration easily to application 💳
 
-[![](https://jitpack.io/v/bulanyurij/Liqpay.svg)](https://jitpack.io/#bulanyurij/Liqpay)
+[![](https://jitpack.io/v/AleksandrHavrylenko/Liqpay.svg)](https://jitpack.io/#AleksandrHavrylenko/Liqpay)
 
 ### [Visit official documentation for the details](https://www.liqpay.ua/documentation/en/)
 
@@ -23,7 +23,7 @@ Step 2. Add the dependency
 
 ```
 dependencies {
-    implementation 'com.github.bulanyurij:Liqpay:version'
+    implementation 'com.github.AleksandrHavrylenko:Liqpay:0.2.0'
 }
 ```
 ## Usage

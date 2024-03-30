@@ -1,9 +1,11 @@
 package ua.liqpay
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import org.json.JSONObject
 import ua.liqpay.utils.base64
 import ua.liqpay.utils.signature
@@ -84,15 +86,25 @@ class LiqPay(
      * @param signature The unique signature of each request base64_encode(sha1(private_key + data + private_key))
      *
      */
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     fun checkout(
         base64Data: String,
         signature: String
     ) {
         val liqPay = LiqPay(context, callback)
-        context.registerReceiver(
-            liqPay.eventReceiver,
-            IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(
+                liqPay.eventReceiver,
+                IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            context.registerReceiver(
+                liqPay.eventReceiver,
+                IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
+            )
+        }
+
         LiqpayActivity.start(context, base64Data, signature)
     }
 

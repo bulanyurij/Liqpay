@@ -14,7 +14,7 @@ internal fun isInstallApp(context: Context, uri: String): Boolean {
     try {
         pm.getPackageInfo(uri, PackageManager.GET_ACTIVITIES)
         return true
-    } catch (e: PackageManager.NameNotFoundException) {
+    } catch (_: PackageManager.NameNotFoundException) {
     }
     return false
 }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.os.Build
 import android.os.Bundle
 import ua.liqpay.LIQPAY_BROADCAST_RECEIVER_ACTION
 import ua.liqpay.LIQPAY_DATA_KEY
@@ -37,12 +38,20 @@ internal class LiqpayActivity : Activity() {
         loadingDialog.dismiss()
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onStart() {
         super.onStart()
-        registerReceiver(
-            eventReceiver,
-            IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                eventReceiver,
+                IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION),RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                eventReceiver,
+                IntentFilter(LIQPAY_BROADCAST_RECEIVER_ACTION)
+            )
+        }
     }
 
     override fun onStop() {
